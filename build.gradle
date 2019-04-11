@@ -1,0 +1,99 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven {
+            url "https://dl.bintray.com/ngbinh/maven/"
+        }
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath 'org.github.ngbinh.scalastyle:gradle-scalastyle-plugin_2.12:1.0.0'
+        classpath "net.saliman:gradle-cobertura-plugin:2.5.4"
+        classpath "org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.8.2"
+        classpath "gradle.plugin.com.github.maiflai:gradle-scalatest:0.19"
+        classpath "gradle.plugin.com.palantir:jacoco-coverage:0.4.0"
+        classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.4'
+    }
+}
+
+allprojects {
+    apply plugin: 'com.github.kt3k.coveralls'
+    apply plugin: 'com.palantir.jacoco-full-report'
+
+    repositories {
+        maven {
+            url "https://dl.bintray.com/ngbinh/maven/"
+        }
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+        jcenter()
+    }
+}
+
+def scalaMajorVersion = "2.12"
+def scalaVersion = "${scalaMajorVersion}.5"
+
+subprojects {
+    apply plugin: 'scala'
+    apply plugin: 'scalaStyle'
+    apply plugin: "com.github.maiflai.scalatest"
+    apply plugin: 'jacoco'
+
+    dependencies {
+        // scala
+        compile "org.scala-lang:scala-library:${scalaVersion}"
+        compile "org.scala-lang:scala-compiler:${scalaVersion}"
+
+        // logger
+        compile "ch.qos.logback:logback-classic:1.2.3"
+        compile "com.typesafe.scala-logging:scala-logging_${scalaMajorVersion}:3.7.2"
+
+        // test
+        testCompile "org.scalatest:scalatest_${scalaMajorVersion}:3.0.4"
+        testRuntime "org.pegdown:pegdown:1.1.0"
+    }
+
+    scalaStyle {
+        configLocation = "$rootDir/scalastyle_config.xml"
+        includeTestSourceDirectory = false
+        failOnWarning = true
+        source = "src/main/scala"
+        testSource = "src/test/scala"
+    }
+
+    tasks.withType(JavaExec) {
+        systemProperties System.properties
+    }
+
+    jacocoTestReport {
+        afterEvaluate {
+            classDirectories = files(classDirectories.files.collect {
+                fileTree(dir: it,
+                        exclude: [])
+            })
+        }
+        reports {
+            html.enabled = true
+            xml.enabled = true
+            csv.enabled = false
+        }
+    }
+
+    tasks.withType(ScalaCompile) {
+        scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
+    }
+}
+
+coveralls {
+    sourceDirs = subprojects.sourceSets.main.allSource.srcDirs.flatten()
+    jacocoReportPath = "build/reports/jacoco/jacocoFullReport/jacocoFullReport.xml"
+}
+project(":core") {
+    apply plugin: "com.github.johnrengelman.shadow"
+    dependencies {
+        testCompile "org.scalamock:scalamock_${scalaMajorVersion}:4.1.0"
+    }
+}

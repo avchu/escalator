@@ -1,0 +1,9 @@
+language: java
+jdk:
+  - openjdk8
+sudo: false
+install: true
+script:
+  - ./gradlew clean test jacocoFullReport scalaStyle
+after_success:
+  - ./gradlew coveralls
